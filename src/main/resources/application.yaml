@@ -1,0 +1,10 @@
+spring:
+  application:
+    name: tbank-invest
+
+tbank:
+  token: ${TBANK_TOKEN}
+
+bot:
+  name: ${BOT_NAME}
+  token: ${BOT_TOKEN}
