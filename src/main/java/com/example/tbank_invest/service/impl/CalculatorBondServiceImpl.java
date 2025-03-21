@@ -1,5 +1,6 @@
 package com.example.tbank_invest.service.impl;
 
+import com.example.tbank_invest.mapper.BondMapper;
 import com.example.tbank_invest.service.CalculatorBondService;
 import com.example.tbank_invest.service.TbankService;
 import com.google.protobuf.Timestamp;
@@ -14,6 +15,7 @@ import ru.tinkoff.piapi.contract.v1.Quotation;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
@@ -21,35 +23,24 @@ import java.util.List;
 public class CalculatorBondServiceImpl implements CalculatorBondService {
 
     private final TbankService tbankService;
+    private final BondMapper bondMapper;
 
     @Override
-    public double yearlyYieldBond(String ticker) {
+    public com.example.tbank_invest.entity.Bond yearlyYieldBond(String ticker, Double currentPriceNoNKD) {
 
         InstrumentShort instrument = tbankService.findInstrument(ticker);
         Bond bond = tbankService.findBond(instrument.getFigi());
         List<Coupon> coupons = tbankService.findCoupon(instrument.getFigi());
-        Quotation lastPrice = tbankService.findLastPrice(instrument.getFigi());
+        if (Objects.isNull(currentPriceNoNKD)) {
+            Quotation lastPrice = tbankService.findLastPrice(instrument.getFigi());
+            currentPriceNoNKD = Double.parseDouble(lastPrice.getUnits() + "." + lastPrice.getNano()) * 10;
+        }
 
-        long daysBetween = getDaysBetween(bond.getMaturityDate());
-        double coupon = Double.parseDouble(coupons.getFirst().getPayOneBond().getUnits() + "." + coupons.getFirst().getPayOneBond().getNano());
-        double nkd = Double.parseDouble(bond.getAciValue().getUnits() + "." + bond.getAciValue().getNano());
-        double currentPriceNoNKD = Double.parseDouble(lastPrice.getUnits()+ "." + lastPrice.getNano()) * 10;
-        int countCoupons = coupons.size();
-        double nominal = Double.parseDouble(bond.getInitialNominal().getUnits() + "." + bond.getInitialNominal().getNano());
-        double priceWithNKD = currentPriceNoNKD + nkd;
-        double allPriceCoupons = countCoupons * coupon - nkd;
-        double priceEndNominal = nominal - currentPriceNoNKD;
-        double onePriceBond = (allPriceCoupons + priceEndNominal) - priceWithNKD * 0.003d;
-        double years = (double) daysBetween / 365;
-        double onePriceBondYear = onePriceBond/years;
+        com.example.tbank_invest.entity.Bond mapBond = bondMapper.mapBond(bond, coupons, currentPriceNoNKD);
 
-        return (onePriceBondYear*100)/priceWithNKD;
+        log.info("Bond: {}", mapBond);
+
+        return mapBond;
     }
 
-    private long getDaysBetween(Timestamp dateMaturity) {
-        Instant now = Instant.now();
-        Instant dateMat = Instant.ofEpochSecond(dateMaturity.getSeconds(), dateMaturity.getNanos());
-
-        return ChronoUnit.DAYS.between(now, dateMat);
-    }
 }

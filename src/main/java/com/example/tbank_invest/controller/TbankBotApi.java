@@ -2,6 +2,7 @@ package com.example.tbank_invest.controller;
 
 
 import com.example.tbank_invest.config.properties.BotProperties;
+import com.example.tbank_invest.entity.Bond;
 import com.example.tbank_invest.service.CalculatorBondService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -36,7 +37,13 @@ public class TbankBotApi extends TelegramLongPollingBot {
 
             Long chatId = update.getMessage().getChatId();
 
-            SendMessage sendMessage = new SendMessage(String.valueOf(chatId), String.valueOf(calculatorBondService.yearlyYieldBond(update.getMessage().getText())));
+            String[] mess = update.getMessage().getText().split(" ");
+
+            Bond bond = calculatorBondService.yearlyYieldBond(mess[0], mess.length <=1 ? null : Double.valueOf(mess[1]));
+
+            String returnMes = String.format("%s %s %,.3f %,.3f", bond.getName(), bond.getTicker(), bond.getYears(), bond.getAnnualReturn());
+
+            SendMessage sendMessage = new SendMessage(String.valueOf(chatId), String.valueOf(returnMes));
 
             try {
                 execute(sendMessage);
